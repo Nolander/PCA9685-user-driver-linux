@@ -49,6 +49,7 @@ extern "C"{
 #define PCA9685_ERR_I2C_WRITE				-8
 #define PCA9685_ERR_I2C_READ				-9
 #define PCA9685_ERR_NO_FILE					-10
+#define PCA9685_ERR_TRIVIAL_ACTION			-11
 
 /////////////////////////////////////////////
 /////////////// REGISTER LIST ///////////////
@@ -82,7 +83,7 @@ extern "C"{
 #define PCA9685_SETTING_MODE1_SUB2 (1<<2)
 #define PCA9685_SETTING_MODE1_SUB1 (1<<3)
 #define PCA9685_SETTING_MODE1_SLEEP (1<<4)
-#define PCA9685_SETTING_MODE1_AUTOINCR (1<<5) TODO: add support
+#define PCA9685_SETTING_MODE1_AUTOINCR (1<<5) //TODO: add support
 #define PCA9685_SETTING_MODE1_EXTCLK (1<<6)
 #define PCA9685_SETTING_MODE1_RESTART (1<<7)
 
@@ -146,9 +147,9 @@ typedef struct PCA9685_channel{
 
 typedef struct PCA9685_config{
 	PCA9685_channel channels[PCA9685_MAXCHAN];
-//private:
-	int i2c_bus = -1;
-	int i2cFile = -1;
+//private: dont touch these directly
+	int i2c_bus;
+	int i2cFile;
 	uint8_t dev_i2c_address;
 	uint32_t osc_freq;//Hz
 	uint32_t pwm_period;//us
@@ -158,59 +159,65 @@ typedef struct PCA9685_config{
 	char int_settings;
 } PCA9685_config;
 
+#ifdef __cplusplus
+#define DEFAULT_PARAM(x) =x
+#else
+#define DEFAULT_PARAM(x)
+#endif
+
 int PCA9685_config_only(PCA9685_config* config,
 		int i2cfile,
 		uint8_t dev_address,
-		char mode1_settings = PCA9685_SETTING_MODE1_DEFAULTS,
-	    char mode2_settings = PCA9685_SETTING_MODE2_DEFAULTS,
-		uint32_t default_pwm_period_us = PCA9685_DEFAULT_PERIOD_FOR_INTOSC,
-		uint32_t osc_freq_Hz = PCA9685_DEFAULT_OSC,//Hz
-		bool storeConfig = true);
+		uint8_t mode1_settings  DEFAULT_PARAM(PCA9685_SETTING_MODE1_DEFAULTS),
+		uint8_t mode2_settings  DEFAULT_PARAM(PCA9685_SETTING_MODE2_DEFAULTS),
+		uint32_t default_pwm_period_us  DEFAULT_PARAM(PCA9685_DEFAULT_PERIOD_FOR_INTOSC),
+		uint32_t osc_freq_Hz  DEFAULT_PARAM(PCA9685_DEFAULT_OSC),//Hz
+		bool storeConfig  DEFAULT_PARAM(true));
 
 int PCA9685_config_and_open_i2c(PCA9685_config* config,
 		int i2cbus,
 		uint8_t dev_address,
-		char mode1_settings = PCA9685_SETTING_MODE1_DEFAULTS,
-		char mode2_settings = PCA9685_SETTING_MODE2_DEFAULTS,
-		uint32_t default_pwm_period_us = PCA9685_DEFAULT_PERIOD_FOR_INTOSC,
-		uint32_t osc_freq_Hz = PCA9685_DEFAULT_OSC,
-		bool storeConfig = true);
+		uint8_t mode1_settings  DEFAULT_PARAM(PCA9685_SETTING_MODE1_DEFAULTS),
+		uint8_t mode2_settings  DEFAULT_PARAM(PCA9685_SETTING_MODE2_DEFAULTS),
+		uint32_t default_pwm_period_us  DEFAULT_PARAM(PCA9685_DEFAULT_PERIOD_FOR_INTOSC),
+		uint32_t osc_freq_Hz  DEFAULT_PARAM(PCA9685_DEFAULT_OSC),//Hz
+		bool storeConfig  DEFAULT_PARAM(true));
 
 int PCA9685_close_i2c(PCA9685_config* config = NULL);
 
 int PCA9685_updateChannelRange(int channel_start,
 		int channel_end,
-		PCA9685_config* config = NULL);
+		PCA9685_config* config DEFAULT_PARAM(NULL));
 
 int PCA9685_updateChannels(PCA9685_WORD_t channels,
-				PCA9685_config* config = NULL);
+				PCA9685_config* config  DEFAULT_PARAM(NULL));
 
 int PCA9685_updateChannel(int channel,
-		PCA9685_config* config = NULL);
+		PCA9685_config* config DEFAULT_PARAM(NULL));
 
-int PCA9685_writeReg(char reg,
-		char val,
-		char mask = NULL,
-		PCA9685_config* config = NULL);
+int PCA9685_writeReg(uint8_t reg,
+		uint8_t val,
+		uint8_t mask = 0xFF,
+		PCA9685_config* config DEFAULT_PARAM(NULL));
 
-int PCA9685_readReg(char reg,
+int PCA9685_readReg(uint8_t reg,
 		char* buf,
-		PCA9685_config* config = NULL);
+		PCA9685_config* config DEFAULT_PARAM(NULL));
 
-int PCA9685_wake(PCA9685_config* config = NULL);
+int PCA9685_wake(PCA9685_config* config DEFAULT_PARAM(NULL));
 
-int PCA9685_sleep(PCA9685_config* config = NULL);
+int PCA9685_sleep(PCA9685_config* config DEFAULT_PARAM(NULL));
 
-int PCA9685_softReset(PCA9685_config* config = NULL);
+int PCA9685_softReset(PCA9685_config* config DEFAULT_PARAM(NULL));
 
-int PCA9685_enableAutoIncrement(PCA9685_config* config = NULL);
+int PCA9685_enableAutoIncrement(PCA9685_config* config DEFAULT_PARAM(NULL));
 
-int PCA9685_disableAutoIncrement(PCA9685_config* config = NULL);
+int PCA9685_disableAutoIncrement(PCA9685_config* config DEFAULT_PARAM(NULL));
 
-int PCA9685_changePWMPeriod(int newPeriod_us = NULL);
+int PCA9685_changePWMPeriod(int newPeriod_us DEFAULT_PARAM(0));
 
 int PCA9685_changeExtOSC(int new_osc_freq_hz,
-		PCA9685_config* config = NULL);
+		PCA9685_config* config DEFAULT_PARAM(NULL));
 
 ///////////////////////////////////
 //////////NON USER THINGS//////////

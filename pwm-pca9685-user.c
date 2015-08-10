@@ -7,8 +7,8 @@
 #define LED_N_OFF_H(N)  (PCA9685_REG_LEDX_OFF_H + (4 * (N)))
 #define LED_N_OFF_L(N)  (PCA9685_REG_LEDX_OFF_L + (4 * (N)))
 
-static int __read_reg(char reg, char* buf, PCA9685_config* config);
-static int __write_reg(char reg, char val, PCA9685_config* config);
+static int __read_reg(uint8_t reg, char* buf, PCA9685_config* config);
+static int __write_reg(uint8_t reg, uint8_t val, PCA9685_config* config);
 static int __execute_settings(PCA9685_config* config);
 static int __calc_prescale(uint32_t period, uint32_t osc, PCA9685_config* config);
 
@@ -153,15 +153,16 @@ static int __execute_settings(PCA9685_config* config){
 			return PCA9685_ERR_WRITING_PRESCALE;
 		}
 
-	if(config->mode1_settings != PCA9685_SETTING_MODE1_DEFAULTS)
-		if(__write_reg(PCA9685_REG_MODE1, config->mode1_settings, config)){
-			perror("unable to set mode 1");
-			return PCA9685_ERR_I2C_WRITE;
-		}
-
+	//we do mode2 settings first in case mode 1 intends to set auto increment
 	if(config->mode2_settings != PCA9685_SETTING_MODE2_DEFAULTS)
 		if(__write_reg(PCA9685_REG_MODE2, config->mode2_settings, config)){
 			perror("unable to set mode 2");
+			return PCA9685_ERR_I2C_WRITE;
+		}
+
+	if(config->mode1_settings != PCA9685_SETTING_MODE1_DEFAULTS)
+		if(__write_reg(PCA9685_REG_MODE1, config->mode1_settings, config)){
+			perror("unable to set mode 1");
 			return PCA9685_ERR_I2C_WRITE;
 		}
 
@@ -241,10 +242,10 @@ int PCA9685_updateChannelRange(int channel_start,
 
 		for(i=channel_start;i<=channel_end;++i){
 			offtime.val = (config->channels[i].dutyTime_us << 12) / config->pwm_period;
-			data[i<<2 + 1] = 0;
-			data[i<<2 + 2] = 0;
-			data[i<<2 + 3] = GET_LOW(offtime.val);
-			data[i<<2 + 4] = GET_HIGH(offtime.val);
+			data[(i<<2) + 1] = 0;
+			data[(i<<2) + 2] = 0;
+			data[(i<<2) + 3] = GET_LOW(offtime.val);
+			data[(i<<2) + 4] = GET_HIGH(offtime.val);
 		}
 		if(write(config->i2cFile, data, n_bytes) != n_bytes)
 			return PCA9685_ERR_I2C_WRITE;
@@ -318,9 +319,9 @@ int PCA9685_updateChannel(int channel,
 
 }
 
-int PCA9685_writeReg(char reg,
-		char val,
-		char mask,
+int PCA9685_writeReg(uint8_t reg,
+		uint8_t val,
+		uint8_t mask,
 		PCA9685_config* config)
 {
 	VERIFY(config);
@@ -328,7 +329,10 @@ int PCA9685_writeReg(char reg,
 	char temp;
 	int err;
 
-	if(mask){
+	if(mask == 0)
+		return PCA9685_ERR_TRIVIAL_ACTION;
+
+	if(mask != 0xff){
 		if(err = __read_reg(reg, &temp, config)){
 			perror("error reading from device");
 			return err;
@@ -349,7 +353,10 @@ int PCA9685_readReg(char reg,
 
 }
 
-static int __write_reg(uint8_t reg, uint8_t val, PCA9685_config* config){
+static int __write_reg(uint8_t reg,
+		uint8_t val,
+		PCA9685_config* config)
+{
 	uint8_t data[2];
 
 	//data[0] = config->dev_i2c_address | PCA9685_WRITE_BIT;
@@ -364,7 +371,7 @@ static int __write_reg(uint8_t reg, uint8_t val, PCA9685_config* config){
 	return PCA9685_ERR_NOERR;
 }
 
-static int __read_reg(char reg,
+static int __read_reg(uint8_t reg,
 		char* buf,
 		PCA9685_config* config)
 {

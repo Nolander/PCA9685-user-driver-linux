@@ -50,7 +50,6 @@ extern "C"{
 #define PCA9685_ERR_I2C_READ				-9
 #define PCA9685_ERR_NO_FILE					-10
 
-
 /////////////////////////////////////////////
 /////////////// REGISTER LIST ///////////////
 /////////////////////////////////////////////
@@ -100,7 +99,7 @@ extern "C"{
 #define PCA9685_MIN_PRESCALE 3
 
 //////////////////////////////////////////////
-//////////// COMPANY SETTINGS ////////////////
+///////////// COMPANY SETTINGS ///////////////
 //////////////////////////////////////////////
 
 // Adafruit PCA9685
@@ -113,8 +112,6 @@ extern "C"{
 #define FUTABA_MAX_PERIOD_us 1200
 #define PCA9685_FUTABAS3004_PWM_PERIOD 14000 //us
 
-
-
 //////////////////////////////////////////////
 ////////////////// A P I /////////////////////
 //////////////////////////////////////////////
@@ -123,13 +120,18 @@ extern "C"{
 
 typedef uint16_t PCA9685_WORD_t;
 
-//TODO: fix endianness issues here
+//TODO: fix endianness issues here (fixed?)
 typedef struct PCA9685_reg{
 	union{
 		PCA9685_WORD_t val;
 		struct {
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 			char hval;
 			char lval;
+#else // __BYTE_ORDER == __BIG_ENDIAN
+			char lval;
+			char hval;
+#endif
 		};
 	};
 } PCA9685_reg;
@@ -144,6 +146,7 @@ typedef struct PCA9685_channel{
 
 typedef struct PCA9685_config{
 	PCA9685_channel channels[PCA9685_MAXCHAN];
+//private:
 	int i2c_bus = -1;
 	int i2cFile = -1;
 	uint8_t dev_i2c_address;
@@ -151,7 +154,7 @@ typedef struct PCA9685_config{
 	uint32_t pwm_period;//us
 	char mode1_settings;
 	char mode2_settings;
-	char prescale;
+	uint8_t prescale;
 	char int_settings;
 } PCA9685_config;
 
@@ -160,8 +163,8 @@ int PCA9685_config_only(PCA9685_config* config,
 		uint8_t dev_address,
 		char mode1_settings = PCA9685_SETTING_MODE1_DEFAULTS,
 	    char mode2_settings = PCA9685_SETTING_MODE2_DEFAULTS,
-		int default_pwm_period_us = PCA9685_DEFAULT_PERIOD_FOR_INTOSC,
-		int osc_freq_Hz = PCA9685_DEFAULT_OSC,//Hz
+		uint32_t default_pwm_period_us = PCA9685_DEFAULT_PERIOD_FOR_INTOSC,
+		uint32_t osc_freq_Hz = PCA9685_DEFAULT_OSC,//Hz
 		bool storeConfig = true);
 
 int PCA9685_config_and_open_i2c(PCA9685_config* config,
@@ -169,14 +172,14 @@ int PCA9685_config_and_open_i2c(PCA9685_config* config,
 		uint8_t dev_address,
 		char mode1_settings = PCA9685_SETTING_MODE1_DEFAULTS,
 		char mode2_settings = PCA9685_SETTING_MODE2_DEFAULTS,
-		int default_pwm_period_us = PCA9685_DEFAULT_PERIOD_FOR_INTOSC,
-		int osc_freq_Hz = PCA9685_DEFAULT_OSC,
+		uint32_t default_pwm_period_us = PCA9685_DEFAULT_PERIOD_FOR_INTOSC,
+		uint32_t osc_freq_Hz = PCA9685_DEFAULT_OSC,
 		bool storeConfig = true);
 
 int PCA9685_close_i2c(PCA9685_config* config = NULL);
 
-int PCA9685_updateChannelRange(char channel_start,
-		char channel_end,
+int PCA9685_updateChannelRange(int channel_start,
+		int channel_end,
 		PCA9685_config* config = NULL);
 
 int PCA9685_updateChannels(PCA9685_WORD_t channels,
@@ -198,7 +201,7 @@ int PCA9685_wake(PCA9685_config* config = NULL);
 
 int PCA9685_sleep(PCA9685_config* config = NULL);
 
-int PCA9685_softReset();
+int PCA9685_softReset(PCA9685_config* config = NULL);
 
 int PCA9685_enableAutoIncrement(PCA9685_config* config = NULL);
 
@@ -206,13 +209,12 @@ int PCA9685_disableAutoIncrement(PCA9685_config* config = NULL);
 
 int PCA9685_changePWMPeriod(int newPeriod_us = NULL);
 
-int PCA9685_changeExtOSC(int new_osc_freq_hz, PCA9685_config* config = NULL);
+int PCA9685_changeExtOSC(int new_osc_freq_hz,
+		PCA9685_config* config = NULL);
 
-
-
-/////////////////////////////////
-////////NON USER THINGS///////
-/////////////////////////////////
+///////////////////////////////////
+//////////NON USER THINGS//////////
+///////////////////////////////////
 
 #define PCA9685_NUMREGS         0xFF
 #define PCA9685_WRITE_BIT 0

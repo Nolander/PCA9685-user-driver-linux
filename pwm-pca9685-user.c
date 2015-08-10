@@ -10,7 +10,7 @@
 static int __read_reg(char reg, char* buf, PCA9685_config* config);
 static int __write_reg(char reg, char val, PCA9685_config* config);
 static int __execute_settings(PCA9685_config* config);
-static int __calc_prescale(int period, int osc, PCA9685_config* config);
+static int __calc_prescale(uint32_t period, uint32_t osc, PCA9685_config* config);
 
 PCA9685_config* stored_config;
 
@@ -25,7 +25,18 @@ PCA9685_config* stored_config;
 //PCA9685_ERR_I2C_WRITE
 //PCA9685_ERR_I2C_READ
 
-static int __calc_prescale(int period_us, int osc, PCA9685_config* config ){
+/*
+ *
+ * Calculates the prescale based on Equation 1 in the literature.
+ * The prescaler does not seem to be very precise, or at least the formula for calculating
+ * it is over simplified. For example, when prescale equals 3, at a given update rate, the internal osc
+ * is calculated to be 21 MHz (instead of 25 MHz). For prescale values above 80 or so, the internal osc
+ * is calculated to be about 28 MHz.
+ *
+ * TODO: improve prescale calculation when internal oscillator is used.
+ *
+ */
+static int __calc_prescale(uint32_t period_us, uint32_t osc, PCA9685_config* config ){
 
 	uint32_t prescale;
 	prescale = ((osc / 1000000)*period_us) >> 12; //dividing by 4096
@@ -48,8 +59,8 @@ int PCA9685_config_only(PCA9685_config* config,
 		uint8_t dev_address,
 		char mode1_settings,
 		char mode2_settings,
-		int default_pwm_period_us,
-		int osc_freq_Hz,
+		uint32_t default_pwm_period_us,
+		uint32_t osc_freq_Hz,
 		bool storeConfig)
 {
 	int err;
@@ -86,8 +97,8 @@ int PCA9685_config_and_open_i2c(PCA9685_config* config,
 		uint8_t dev_address,
 		char mode1_settings,
 		char mode2_settings,
-		int default_pwm_period_us,
-		int osc_freq_Hz,
+		uint32_t default_pwm_period_us,
+		uint32_t osc_freq_Hz,
 		bool storeConfig)
 {
 	int err;
@@ -185,15 +196,29 @@ int PCA9685_updateChannels(PCA9685_WORD_t channels,
 			return PCA9685_ERR_DUTY_OVERFLOW;
 
 		offtime.val = ((config->pwm_period - config->channels[i].dutyTime_us) >> 12) / config->pwm_period;
+		if(config->mode1_settings & PCA9685_SETTING_MODE1_AUTOINCR){
+			data[0] = LED_N_ON_L(i);
+			data[1] = GET_LOW(0);//on time
+			data[2] = GET_HIGH(0);
+			data[3] = GET_LOW(offtime.val);
+			data[4] = GET_HIGH(offtime.val);
+			if (write(config->i2cFile, data, 5) != 5) {
+				perror("error updating channels");
+				return PCA9685_ERR_I2C_WRITE;
+			}
+		}
+		else{
+			if (__write_reg(LED_N_ON_L(i), GET_LOW(0), config))
+				return PCA9685_ERR_I2C_WRITE;
 
-		data[0] = LED_N_ON_L(i);
-		data[1] = GET_LOW(0);//on time
-		data[2] = GET_HIGH(0);
-		data[3] = GET_LOW(offtime.val);
-		data[4] = GET_HIGH(offtime.val);
-		if (write(config->i2cFile, data, 5) != 5) {
-			perror("error updating channels");
-			return PCA9685_ERR_I2C_WRITE;
+			if (__write_reg(LED_N_ON_H(i), GET_HIGH(0), config))
+				return PCA9685_ERR_I2C_WRITE;
+
+			if (__write_reg(LED_N_OFF_L(i), GET_LOW(offtime.val), config))
+				return PCA9685_ERR_I2C_WRITE;
+
+			if (__write_reg(LED_N_OFF_H(i), GET_HIGH(offtime.val), config))
+				return PCA9685_ERR_I2C_WRITE;
 		}
 	}
 
@@ -201,13 +226,13 @@ int PCA9685_updateChannels(PCA9685_WORD_t channels,
 
 }
 
-int PCA9685_updateChannelRange(char channel_start,
-		char channel_end,
+int PCA9685_updateChannelRange(int channel_start,
+		int channel_end,
 		PCA9685_config* config)
 {
 	VERIFY(config);
 	uint8_t data[PCA9685_MAXCHAN*4 + 1]; //dynamically allocating on the stack is bad/impossible, so we dont do that
-	char n_bytes = ((channel_end - channel_start + 1) << 2) + 1;
+	int n_bytes = ((channel_end - channel_start + 1) << 2) + 1;
 	PCA9685_reg offtime;
 	int i;
 

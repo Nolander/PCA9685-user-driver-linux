@@ -1,6 +1,5 @@
 
 #include "pwm-pca9685-user.h"
-#include <math.h>
 
 #define LED_N_ON_H(N)   (PCA9685_REG_LEDX_ON_H + (4 * (N)))
 #define LED_N_ON_L(N)   (PCA9685_REG_LEDX_ON_L + (4 * (N)))
@@ -12,7 +11,7 @@ static int __write_reg(uint8_t reg, uint8_t val, PCA9685_config* config);
 static int __execute_settings(PCA9685_config* config);
 static int __calc_prescale(uint32_t period, uint32_t osc, PCA9685_config* config);
 
-PCA9685_config* stored_config;
+//static char* i2cPath = {'/','d', 'e', 'v', '/', 'i', '2', 'c', '-', 0 , 0 };
 
 //PCA9685_ERR_NOERR
 //PCA9685_ERR_NO_CONFIG
@@ -57,19 +56,15 @@ static int __calc_prescale(uint32_t period_us, uint32_t osc, PCA9685_config* con
 int PCA9685_config_only(PCA9685_config* config,
 		int i2cfile,
 		uint8_t dev_address,
-		char mode1_settings,
-		char mode2_settings,
+		uint8_t mode1_settings,
+		uint8_t mode2_settings,
 		uint32_t default_pwm_period_us,
-		uint32_t osc_freq_Hz,
-		bool storeConfig)
+		uint32_t osc_freq_Hz)
 {
 	int err;
 
 	if(!config)
 		return PCA9685_ERR_NO_CONFIG;
-
-	if(storeConfig)
-		stored_config = config;
 
 	//TODO: see if defaulting the dev_address messes with the auto increment protocol
 
@@ -95,25 +90,22 @@ int PCA9685_config_only(PCA9685_config* config,
 int PCA9685_config_and_open_i2c(PCA9685_config* config,
 		int i2cbus,
 		uint8_t dev_address,
-		char mode1_settings,
-		char mode2_settings,
+		uint8_t mode1_settings,
+		uint8_t mode2_settings,
 		uint32_t default_pwm_period_us,
-		uint32_t osc_freq_Hz,
-		bool storeConfig)
+		uint32_t osc_freq_Hz)
 {
 	int err;
-	char* i2cpath;
+	char i2cpath[11] = {0};
 
 	if(!config)
 		return PCA9685_ERR_NO_CONFIG;
 
-	if(storeConfig)
-		stored_config = config;
-
 	config->i2c_bus = i2cbus;
 	config->dev_i2c_address = dev_address;
 
-	i2cpath = config->i2c_bus == 0 ? (char*)"/dev/i2c-0" : (char*)"/dev/i2c-1";
+	//i2cpath = config->i2c_bus == 0 ? (char*)"/dev/i2c-0" : (char*)"/dev/i2c-1";
+	snprintf(i2cpath, sizeof(i2cpath), "/dev/i2c-%d", i2cbus);
 
 	config->i2cFile = open(i2cpath, O_RDWR);
 
@@ -182,6 +174,16 @@ int PCA9685_close_i2c(PCA9685_config* config){
 	return PCA9685_ERR_NOERR;
 }
 
+int PCA9685_setAllChannelsToZero(PCA9685_config* config){
+
+	int i;
+	for(i = 0;i< PCA9685_MAXCHAN;++i){
+		config->channels[i].dutyTime_us = 0;
+	}
+
+	return PCA9685_updateChannelRange(0, PCA9685_MAXCHAN - 1, config);
+}
+
 int PCA9685_updateChannels(PCA9685_WORD_t channels,
 				PCA9685_config* config)
 {
@@ -197,7 +199,9 @@ int PCA9685_updateChannels(PCA9685_WORD_t channels,
 			return PCA9685_ERR_DUTY_OVERFLOW;
 
 		offtime.val = ((config->pwm_period - config->channels[i].dutyTime_us) >> 12) / config->pwm_period;
+
 		if(config->mode1_settings & PCA9685_SETTING_MODE1_AUTOINCR){
+
 			data[0] = LED_N_ON_L(i);
 			data[1] = GET_LOW(0);//on time
 			data[2] = GET_HIGH(0);
@@ -227,21 +231,30 @@ int PCA9685_updateChannels(PCA9685_WORD_t channels,
 
 }
 
-int PCA9685_updateChannelRange(int channel_start,
-		int channel_end,
+int PCA9685_updateChannelRange(uint8_t channel_start,
+		uint8_t channel_end,
 		PCA9685_config* config)
 {
 	VERIFY(config);
+
 	uint8_t data[PCA9685_MAXCHAN*4 + 1]; //dynamically allocating on the stack is bad/impossible, so we dont do that
 	int n_bytes = ((channel_end - channel_start + 1) << 2) + 1;
 	PCA9685_reg offtime;
 	int i;
 
+	if(channel_start > channel_end || channel_end >= PCA9685_MAXCHAN)
+		return PCA9685_ERR_BOUNDS;
+
 	if(config->mode1_settings & PCA9685_SETTING_MODE1_AUTOINCR){
 		data[0] = LED_N_ON_L(channel_start);
 
 		for(i=channel_start;i<=channel_end;++i){
+
+			if(config->pwm_period < config->channels[i].dutyTime_us)
+				return PCA9685_ERR_DUTY_OVERFLOW;
+
 			offtime.val = (config->channels[i].dutyTime_us << 12) / config->pwm_period;
+
 			data[(i<<2) + 1] = 0;
 			data[(i<<2) + 2] = 0;
 			data[(i<<2) + 3] = GET_LOW(offtime.val);
@@ -254,6 +267,7 @@ int PCA9685_updateChannelRange(int channel_start,
 
 	else{
 		for(i=channel_start;i<=channel_end;++i){
+
 			if(config->pwm_period < config->channels[i].dutyTime_us)
 				return PCA9685_ERR_DUTY_OVERFLOW;
 
@@ -277,7 +291,7 @@ int PCA9685_updateChannelRange(int channel_start,
 
 }
 
-int PCA9685_updateChannel(int channel,
+int PCA9685_updateChannel(uint8_t channel,
 		PCA9685_config* config)
 {
 	VERIFY(config);
@@ -285,12 +299,16 @@ int PCA9685_updateChannel(int channel,
 	PCA9685_reg offtime;
 	uint8_t data[5];
 
+	if(channel >= PCA9685_MAXCHAN)
+		return PCA9685_ERR_BOUNDS;
+
 	if(config->pwm_period < config->channels[channel].dutyTime_us)
 		return PCA9685_ERR_DUTY_OVERFLOW;
 
 	offtime.val = (config->channels[channel].dutyTime_us << 12) / config->pwm_period;
 
 	if(config->mode1_settings & PCA9685_SETTING_MODE1_AUTOINCR){
+
 		data[0] = LED_N_ON_L(channel);
 		data[1] = 0;
 		data[2] = 0;
@@ -301,6 +319,7 @@ int PCA9685_updateChannel(int channel,
 			return PCA9685_ERR_I2C_WRITE;
 	}
 	else{
+
 		if (__write_reg(LED_N_ON_L(channel), GET_LOW(0), config))
 			return PCA9685_ERR_I2C_WRITE;
 
@@ -417,7 +436,7 @@ int PCA9685_sleep(PCA9685_config* config)
 
 	}
 
-	return PCA9685_writeReg(PCA9685_REG_MODE1,config->mode1_settings | PCA9685_SETTING_MODE1_SLEEP,0,config);
+	return PCA9685_writeReg(PCA9685_REG_MODE1,config->mode1_settings | MODE1_SLEEP,0,config);
 }
 
 //TODO

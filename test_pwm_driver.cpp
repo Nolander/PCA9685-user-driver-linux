@@ -5,9 +5,9 @@
 
 #define NUM_CHANNELS 16
 #define MIN 860
-#define MAX 1260
+#define MAX 12600
 #define SWEEP_INCR 10
-#define WAIT_INCR_uS 500000
+#define WAIT_INCR_uS 50000
 
 static int test1_updateChannel();
 static int test2_updateChannels();
@@ -22,7 +22,7 @@ int main(int argc, char** argv){
 
 	//test 1
 
-	err = PCA9685_config_and_open_i2c(&myConfig, 1, 0b10000000, 0b00000001, 0b00001001, PCA9685_FUTABAS3004_PWM_PERIOD);
+	err = PCA9685_config_and_open_i2c(&myConfig, 1, 0b10000000, 0b00000001, 0b00000101, PCA9685_FUTABAS3004_PWM_PERIOD);
 
 	err = PCA9685_wake(&myConfig);
 
@@ -32,7 +32,7 @@ int main(int argc, char** argv){
 
 	//test 2
 
-	err = PCA9685_config_only(&myConfig, myConfig.i2cFile, 0b10000000, 0b00000001, 0b00001001, PCA9685_FUTABAS3004_PWM_PERIOD);
+	err = PCA9685_config_only(&myConfig, myConfig.i2cFile, 0b10000000, 0b00000001, 0b00000101, PCA9685_FUTABAS3004_PWM_PERIOD);
 
 	err = PCA9685_wake(&myConfig);
 
@@ -42,7 +42,7 @@ int main(int argc, char** argv){
 
 	//test 3
 
-	err = PCA9685_config_only(&myConfig, myConfig.i2cFile, 0b10000000, 0b00000001, 0b00001001, PCA9685_FUTABAS3004_PWM_PERIOD);
+	err = PCA9685_config_only(&myConfig, myConfig.i2cFile, 0b10000000, 0b00000001, 0b00000101, PCA9685_FUTABAS3004_PWM_PERIOD);
 
 	err = PCA9685_wake(&myConfig);
 
@@ -52,7 +52,7 @@ int main(int argc, char** argv){
 
 	//test 1
 
-	err = PCA9685_config_and_open_i2c(&myConfig, 1, 0b10000000, 0b00100001, 0b00001001, PCA9685_FUTABAS3004_PWM_PERIOD);
+	err = PCA9685_config_and_open_i2c(&myConfig, 1, 0b10000000, 0b00100001, 0b00000101, PCA9685_FUTABAS3004_PWM_PERIOD);
 
 	err = PCA9685_wake(&myConfig);
 
@@ -62,7 +62,7 @@ int main(int argc, char** argv){
 
 	//test 2
 
-	err = PCA9685_config_only(&myConfig, myConfig.i2cFile, 0b10000000, 0b00100001, 0b00001001, PCA9685_FUTABAS3004_PWM_PERIOD);
+	err = PCA9685_config_only(&myConfig, myConfig.i2cFile, 0b10000000, 0b00100001, 0b00000101, PCA9685_FUTABAS3004_PWM_PERIOD);
 
 	err = PCA9685_wake(&myConfig);
 
@@ -72,7 +72,7 @@ int main(int argc, char** argv){
 
 	//test 3
 
-	err = PCA9685_config_only(&myConfig, myConfig.i2cFile, 0b10000000, 0b00100001, 0b00001001, PCA9685_FUTABAS3004_PWM_PERIOD);
+	err = PCA9685_config_only(&myConfig, myConfig.i2cFile, 0b10000000, 0b00100001, 0b00000101, PCA9685_FUTABAS3004_PWM_PERIOD);
 
 	err = PCA9685_wake(&myConfig);
 

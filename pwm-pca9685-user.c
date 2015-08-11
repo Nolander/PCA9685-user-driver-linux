@@ -152,6 +152,8 @@ static int __execute_settings(PCA9685_config* config){
 			return PCA9685_ERR_I2C_WRITE;
 		}
 
+	config->mode1_settings |= MODE1_SLEEP;
+
 	if(config->mode1_settings != PCA9685_SETTING_MODE1_DEFAULTS)
 		if(__write_reg(PCA9685_REG_MODE1, config->mode1_settings, config)){
 			perror("unable to set mode 1");
@@ -193,12 +195,14 @@ int PCA9685_updateChannels(PCA9685_WORD_t channels,
 	PCA9685_reg offtime;
 	int i;
 	for(i=0;i<PCA9685_MAXCHAN;++i){
-		if(~(channels & (1<<i)))
+
+		if((channels & (1<<i)) == 0)
 			continue;
+
 		if(config->pwm_period < config->channels[i].dutyTime_us)
 			return PCA9685_ERR_DUTY_OVERFLOW;
 
-		offtime.val = ((config->pwm_period - config->channels[i].dutyTime_us) >> 12) / config->pwm_period;
+		offtime.val = (config->channels[i].dutyTime_us << 12) / config->pwm_period;
 
 		if(config->mode1_settings & PCA9685_SETTING_MODE1_AUTOINCR){
 
@@ -340,8 +344,8 @@ int PCA9685_updateChannel(uint8_t channel,
 
 int PCA9685_writeReg(uint8_t reg,
 		uint8_t val,
-		uint8_t mask,
-		PCA9685_config* config)
+		PCA9685_config* config,
+		uint8_t mask)
 {
 	VERIFY(config);
 
@@ -362,7 +366,7 @@ int PCA9685_writeReg(uint8_t reg,
 	return __write_reg(reg, val, config);
 }
 
-int PCA9685_readReg(char reg,
+int PCA9685_readReg(uint8_t reg,
 		char* buf,
 		PCA9685_config* config)
 {
@@ -412,32 +416,29 @@ static int __read_reg(uint8_t reg,
 	return PCA9685_ERR_NOERR;
 }
 
-//TODO
 int PCA9685_wake(PCA9685_config* config)
 {
 	VERIFY(config);
 
 	PCA9685_updateChannelRange(0, PCA9685_MAXCHAN-1, config);
 
+	if(PCA9685_writeReg(PCA9685_REG_MODE1,config->mode1_settings & ~MODE1_SLEEP, config, 0xff))
+		return PCA9685_ERR_I2C_WRITE;
+
 	if(config->int_settings ^ EXTOSC_ENABLED)
 		usleep(500);
-	//return PCA9685_writeReg(PCA9685_REG_MODE1,0,0,config);
+
+	return PCA9685_ERR_NOERR;
 }
 
-//TODO
 int PCA9685_sleep(PCA9685_config* config)
 
 {
 	VERIFY(config);
 
-	int i;
-
-	for(i = 0;i<PCA9685_MAXCHAN;++i){
-
-	}
-
-	return PCA9685_writeReg(PCA9685_REG_MODE1,config->mode1_settings | MODE1_SLEEP,0,config);
+	return PCA9685_writeReg(PCA9685_REG_MODE1,config->mode1_settings | MODE1_SLEEP,config, 0xff);
 }
+/*
 
 //TODO
 int PCA9685_softReset(PCA9685_config* config)
@@ -473,9 +474,9 @@ int PCA9685_changePWMPeriod(int newPeriod_us, PCA9685_config* config)
 }
 
 //TODO
-/*
- * This function should be called after the external osc has been changed in hardware
- */
+
+ //This function should be called after the external osc has been changed in hardware
+
 int PCA9685_changeExtOSC(int new_osc_freq_hz, PCA9685_config* config)
 {
 	VERIFY(config);
@@ -484,3 +485,4 @@ int PCA9685_changeExtOSC(int new_osc_freq_hz, PCA9685_config* config)
 
 	return PCA9685_ERR_NOERR;
 }
+*/

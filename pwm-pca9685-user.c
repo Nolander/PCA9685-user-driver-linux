@@ -1,5 +1,31 @@
 
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <linux/i2c.h>
+#include <linux/i2c-dev.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
+
 #include "pwm-pca9685-user.h"
+
+/////////////////////////////////////
+////////// NON USER THINGS //////////
+/////////////////////////////////////
+
+#define PCA9685_NUMREGS         0xFF
+#define PCA9685_WRITE_BIT 0
+#define PCA9685_READ_BIT 1
+#define PCA9685_PWM_PERIOD_BITS_PRECISION 12
+#define MODE1_SLEEP (1<<4)
+#define EXTOSC_ENABLED (1<<0)
+
+#define VERIFY(x) if(!x){ \
+						return PCA9685_ERR_NO_CONFIG; \
+					}
 
 #define LED_N_ON_H(N)   (PCA9685_REG_LEDX_ON_H + (4 * (N)))
 #define LED_N_ON_L(N)   (PCA9685_REG_LEDX_ON_L + (4 * (N)))
@@ -10,6 +36,8 @@ static int __read_reg(uint8_t reg, char* buf, PCA9685_config* config);
 static int __write_reg(uint8_t reg, uint8_t val, PCA9685_config* config);
 static int __execute_settings(PCA9685_config* config);
 static int __calc_prescale(uint32_t period, uint32_t osc, PCA9685_config* config);
+
+///////////////////////////////////////////////
 
 //static char* i2cPath = {'/','d', 'e', 'v', '/', 'i', '2', 'c', '-', 0 , 0 };
 

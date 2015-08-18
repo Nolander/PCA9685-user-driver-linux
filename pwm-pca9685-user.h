@@ -21,15 +21,6 @@
 #define PWM_PCA9685_USER_H_
 
 #include <stdint.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <linux/i2c.h>
-#include <linux/i2c-dev.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/ioctl.h>
-#include <fcntl.h>
 
 #ifdef __cplusplus
 extern "C"{
@@ -226,20 +217,8 @@ int PCA9685_changePWMPeriod(uint32_t newPeriod_us);
 int PCA9685_changeExtOSC(uint32_t new_osc_freq_hz,
 		PCA9685_config* config);
 
-/////////////////////////////////////
-////////// NON USER THINGS //////////
-/////////////////////////////////////
+///////////////////////////////////////////////////
 
-#define PCA9685_NUMREGS         0xFF
-#define PCA9685_WRITE_BIT 0
-#define PCA9685_READ_BIT 1
-#define PCA9685_PWM_PERIOD_BITS_PRECISION 12
-#define MODE1_SLEEP (1<<4)
-#define EXTOSC_ENABLED (1<<0)
-
-#define VERIFY(x) if(!x){ \
-						return PCA9685_ERR_NO_CONFIG; \
-					}
 #ifdef __cplusplus
 }
 #endif

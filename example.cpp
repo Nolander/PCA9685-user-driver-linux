@@ -5,7 +5,11 @@
  *      Author: Nolan
  */
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include "pwm-pca9685-user.h"
+
 
 #define NUM_CHANNELS 16
 #define MIN 860

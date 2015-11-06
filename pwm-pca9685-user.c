@@ -103,6 +103,7 @@ int PCA9685_config_only(PCA9685_config* config,
 
 
 	config->i2cFile = i2cfile;
+	config->dev_i2c_address = dev_address;
 	config->mode1_settings = mode1_settings;
 	config->mode2_settings = mode2_settings;
 
@@ -143,7 +144,7 @@ int PCA9685_config_and_open_i2c(PCA9685_config* config,
 	}
 	//see if defaulting the dev_address messes with the auto increment protocol
 
-	if (ioctl(config->i2cFile, I2C_SLAVE, char(dev_address>>1)) < 0) {
+	if (ioctl(config->i2cFile, I2C_SLAVE, (char)(dev_address>>1)) < 0) {
 		perror("i2cSetAddress");
 		return PCA9685_ERR_SET_SLAVEADDR;
 	}
@@ -206,6 +207,9 @@ int PCA9685_close_i2c(PCA9685_config* config){
 
 int PCA9685_setAllChannelsToZero(PCA9685_config* config){
 
+	VERIFY(config);
+
+
 	int i;
 	for(i = 0;i< PCA9685_MAXCHAN;++i){
 		config->channels[i].dutyTime_us = 0;
@@ -218,6 +222,11 @@ int PCA9685_updateChannels(PCA9685_WORD_t channels,
 				PCA9685_config* config)
 {
 	VERIFY(config);
+
+	if (ioctl(config->i2cFile, I2C_SLAVE, (char)(config->dev_i2c_address>>1)) < 0) {
+		perror("i2cSetAddress");
+		return PCA9685_ERR_SET_SLAVEADDR;
+	}
 
 	char data[5];
 	PCA9685_reg offtime;
@@ -268,6 +277,11 @@ int PCA9685_updateChannelRange(uint8_t channel_start,
 		PCA9685_config* config)
 {
 	VERIFY(config);
+
+	if (ioctl(config->i2cFile, I2C_SLAVE, (char)(config->dev_i2c_address>>1)) < 0) {
+		perror("i2cSetAddress");
+		return PCA9685_ERR_SET_SLAVEADDR;
+	}
 
 	uint8_t data[PCA9685_MAXCHAN*4 + 1]; //dynamically allocating on the stack is bad/impossible, so we dont do that
 	int n_bytes = ((channel_end - channel_start + 1) << 2) + 1;
@@ -328,6 +342,12 @@ int PCA9685_updateChannel(uint8_t channel,
 {
 	VERIFY(config);
 
+	if (ioctl(config->i2cFile, I2C_SLAVE, (char)(config->dev_i2c_address>>1)) < 0) {
+		perror("i2cSetAddress");
+		return PCA9685_ERR_SET_SLAVEADDR;
+	}
+
+
 	PCA9685_reg offtime;
 	uint8_t data[5];
 
@@ -377,6 +397,12 @@ int PCA9685_writeReg(uint8_t reg,
 {
 	VERIFY(config);
 
+	if (ioctl(config->i2cFile, I2C_SLAVE, (char)(config->dev_i2c_address>>1)) < 0) {
+		perror("i2cSetAddress");
+		return PCA9685_ERR_SET_SLAVEADDR;
+	}
+
+
 	char temp;
 	int err;
 
@@ -410,6 +436,11 @@ static int __write_reg(uint8_t reg,
 {
 	uint8_t data[2];
 
+	if (ioctl(config->i2cFile, I2C_SLAVE, (char)(config->dev_i2c_address>>1)) < 0) {
+		perror("i2cSetAddress");
+		return PCA9685_ERR_SET_SLAVEADDR;
+	}
+
 	//data[0] = config->dev_i2c_address | PCA9685_WRITE_BIT;
 	data[0] = reg;
 	data[1] = val;
@@ -430,6 +461,11 @@ static int __read_reg(uint8_t reg,
 	char data[2];
 	//data[0] = config->dev_i2c_address;
 	data[0] = reg;
+
+	if (ioctl(config->i2cFile, I2C_SLAVE, (char)(config->dev_i2c_address>>1)) < 0) {
+		perror("i2cSetAddress");
+		return PCA9685_ERR_SET_SLAVEADDR;
+	}
 
 	if(write(config->i2cFile, data, 1) != 1 ){
 		perror("pca9555SetRegisterPair");
